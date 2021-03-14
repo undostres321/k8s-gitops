@@ -1,0 +1,40 @@
+{{- if .Values.server.configEnabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  labels:
+    app.kubernetes.io/name: {{ include "argo-cd.name" . }}-cm
+    helm.sh/chart: {{ include "argo-cd.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: {{ .Values.server.name }}
+  {{- if .Values.server.configAnnotations }}
+  annotations:
+  {{- range $key, $value := .Values.server.configAnnotations }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  {{- end }}
+data:
+{{- toYaml .Values.server.config | nindent 4 }}
+{{- end }}
+  resource.customizations: |
+    admissionregistration.k8s.io/MutatingWebhookConfiguration:
+      ignoreDifferences: |
+        jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
+        - /webhooks/0/failurePolicy
+    install.istio.io/IstioOperator:
+      health.lua: |
+        hs = {}
+        if obj.status ~= nil then
+          if obj.status.status == "HEALTHY" then
+            hs.status = "Healthy"
+            hs.message = "IstioOperator Ready"
+            return hs
+          end
+        end
+        hs.status = "Progressing"
+        hs.message = "Waiting for IstioOperator"
+        return hs
