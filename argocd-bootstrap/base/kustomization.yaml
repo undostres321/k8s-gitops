@@ -9,3 +9,4 @@ resources:
   - master-app.yaml
 patchesStrategicMerge:
   - argocd-cm.yaml
+  - argocd-server.yaml
